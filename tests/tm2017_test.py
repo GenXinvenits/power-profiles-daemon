@@ -126,3 +126,29 @@ class TM2017Tests(Tests):
             os.path.join(acpi_dir, "platform_profile"),
             "low-power",
         )
+
+    def test_failed_activation_preserves_selected_profile(self):
+        """A failed platform activation must not change the selected profile."""
+        acpi_dir = self._setup_platform_profile()
+        profile_path = os.path.join(acpi_dir, "platform_profile")
+
+        self.start_daemon()
+        self.set_dbus_property(
+            "ActiveProfile",
+            GLib.Variant.new_string("balanced"),
+        )
+        self.assertEqual(self.get_dbus_property("ActiveProfile"), "balanced")
+        self.assertEqual(self.read_sysfs_file("sys/firmware/acpi/platform_profile"),
+                         b"balanced-performance")
+
+        # Remove the emulated sysfs attribute so activation cannot read or
+        # update it. The logical profile must remain unchanged on failure.
+        os.remove(profile_path)
+
+        with self.assertRaises(GLib.Error):
+            self.set_dbus_property(
+                "ActiveProfile",
+                GLib.Variant.new_string("performance"),
+            )
+
+        self.assertEqual(self.get_dbus_property("ActiveProfile"), "balanced")
