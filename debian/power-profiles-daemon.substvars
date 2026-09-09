@@ -1,0 +1,4 @@
+python3:Depends=python3:any, python3:any (>= 3.11~)
+shlibs:Depends=libc6 (>= 2.34), libglib2.0-0t64 (>= 2.80.0), libgudev-1.0-0 (>= 234), libpolkit-gobject-1-0 (>= 0.99)
+misc:Depends=
+misc:Pre-Depends=

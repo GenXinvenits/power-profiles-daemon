@@ -1,0 +1,25 @@
+Index: b/tests/integration_test.py
+===================================================================
+--- a/tests/integration_test.py
++++ b/tests/integration_test.py
+@@ -29,6 +29,8 @@
+ 
+ import dbus
+ 
++import platform
++
+ try:
+     import gi
+     from gi.repository import GLib
+@@ -2205,7 +2207,10 @@
+             stderr=sys.stderr,
+         ) as launch_process:
+             self.assertTrue(launch_process)
+-            time.sleep(1)
++            if platform.machine() == 'riscv64':
++                time.sleep(3)
++            else:
++                time.sleep(1)
+             holds = self.get_dbus_property("ActiveProfileHolds")
+             self.assertEqual(len(holds), 1)
+             hold = holds[0]

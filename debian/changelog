@@ -1,0 +1,225 @@
+power-profiles-daemon (0.31-1~tm20171) UNRELEASED; urgency=medium
+
+  * Add TM2017 platform-profile power-source handling and regression
+    tests.
+  * TM2017 custom build
+
+ -- Ubuntu <ubuntu@wsl.scorpion-monster.ts.net>  Wed, 09 Sep 2026 16:39:53 +0530
+
+power-profiles-daemon (0.30-2) unstable; urgency=high
+
+  * Team upload
+  * Fix nocheck build profile (Closes: #1116839)
+  * Add Conflicts/Replaces: tuned-ppd
+  * Bump minimum python3-argparse-manpage and remove
+    handling for older versions
+  * Set -Dauto_features=enabled and explicitly disable pylint test
+  * Update package synopsis to fix a Lintian warning
+  * debian/copyright: Remove obsolete FSF address
+  * debian/watch: Convert to Version: 5
+  * Bump Standards Version to 4.7.2
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Wed, 05 Nov 2025 07:51:20 -0500
+
+power-profiles-daemon (0.30-1.1) unstable; urgency=medium
+
+  * Non-maintainer upload.
+  * Increase timeout to pass test with timeout on riscv64. (Closes: #1098432)
+
+ -- Bo YU <vimer@debian.org>  Thu, 20 Feb 2025 08:50:36 +0000
+
+power-profiles-daemon (0.30-1) unstable; urgency=medium
+
+  * New upstream release
+
+ -- Marco Trevisan (Treviño) <marco@ubuntu.com>  Tue, 18 Feb 2025 19:31:08 +0100
+
+power-profiles-daemon (0.23-1) unstable; urgency=medium
+
+  * New upstream release:
+    - Bugfix release for a performance regression with users who manually
+      adjusted AMD dGPU settings using other software.
+  * debian/watch: Update to support latest gitlab tags page
+
+ -- Marco Trevisan (Treviño) <marco@ubuntu.com>  Tue, 10 Sep 2024 00:57:55 +0200
+
+power-profiles-daemon (0.22-1) unstable; urgency=medium
+
+  * New upstream release
+
+ -- Marco Trevisan (Treviño) <marco@ubuntu.com>  Tue, 03 Sep 2024 03:38:43 +0200
+
+power-profiles-daemon (0.21-2) unstable; urgency=medium
+
+  * Team upload
+  * Update debian/watch
+  * Bump Standards Version to 4.7.0
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Wed, 29 May 2024 15:05:52 -0400
+
+power-profiles-daemon (0.21-1) unstable; urgency=medium
+
+  * New upstream release
+
+ -- Marco Trevisan (Treviño) <marco@ubuntu.com>  Thu, 04 Apr 2024 02:19:26 +0200
+
+power-profiles-daemon (0.20-3) unstable; urgency=medium
+
+  * debian/control: Build-depend on systemd-dev instead of systemd
+    (Closes: #1060563)
+  * debian/patches: Upstream fix on test failing messages
+
+ -- Marco Trevisan (Treviño) <marco@ubuntu.com>  Thu, 15 Feb 2024 18:53:27 +0100
+
+power-profiles-daemon (0.20-2) unstable; urgency=medium
+
+  * debian/rules: Only fix generated makefile for old argparse-manpage versions
+  * debian/patches: Restore systemd conflict with tlp.
+    Tlp is just too much, it can do too many things to be sure it's not
+    conflicting with p-p-d, so let's just enable the conflict again.
+    If someone wants TLP, then it should have only that one running.
+    Not to mention that tlp debian package already conflicts with
+    power-profiles-daemon.
+  * debian/control: Add conflict with laptop-mode-tools and tlp.
+    This is already handled by systemd, but makes it clearer that it's
+    better not having both installed at the same time at all.
+    Tlp is already conflicting with us, so enforce this from our side too.
+  * debian/patches: Refresh patch for generating manpage with upstream ones
+  * debian/patches: Cherry-pick upstream post-releases fixes
+  * debian/patches: Get upstream patches to generate bash/zsh-completions
+  * debian/control: Add build dependencies for generating bash-completions
+  * debian/rules: Explicitly enable bash-completions generation
+  * debian/rules: Enable generating and installing zsh completions in debian
+    There's not a default path for zsh completions defined, as it depends on
+    user configuration or distributions, however as per
+    /usr/share/doc/zsh-common/README.Debian in debian we can use
+    /usr/share/zsh/vendor-completions.
+
+ -- Marco Trevisan (Treviño) <marco@ubuntu.com>  Thu, 15 Feb 2024 17:13:20 +0100
+
+power-profiles-daemon (0.20-1) unstable; urgency=medium
+
+  * New upstream release:
+    - New default bus name is org.freedesktop.UPower.PowerProfiles
+    - Support multiple drivers (ACPI + amd/intel ones)
+  * debian/watch: Update reference to new upstream repository
+  * debian: Update references to new repository under UPower namespace
+  * debian/copyright: Update copyright to new maintainers
+  * debian/control: Add myself to uploaders
+  * debian/control: Add python dependencies
+    While the daemon does not require python at runtime, the control tool
+    does so ensure debian picks them
+  * debian/patches: Refresh
+  * debian/rules: drop dh_missing override for --fail-missing.
+    It's default for some time now
+  * debian/patches: Add upstream patch to generate powerprofilectl manfile
+  * debian/control: Add manpage generation dependencies
+  * debian/rules: Explicitly enable manpage feature
+  * debian/rules: Fix generated manpage entries
+
+ -- Marco Trevisan (Treviño) <marco@ubuntu.com>  Thu, 15 Feb 2024 05:38:30 +0100
+
+power-profiles-daemon (0.13-2) unstable; urgency=medium
+
+  [ Debian Janitor ]
+  * Add debian/upstream/metadata
+  * Avoid explicitly specifying -Wl,--as-needed linker flag
+  * Update standards version to 4.6.2, no changes needed
+
+  [ Jeremy Bícha ]
+  * Release to unstable
+
+ -- Jeremy Bícha <jbicha@ubuntu.com>  Mon, 12 Jun 2023 13:29:15 -0400
+
+power-profiles-daemon (0.13-1) experimental; urgency=medium
+
+  * New upstream version (lp: #2022945)
+    - adds support for the AMD P-State driver that's been added to the
+      6.3 Linux kernel
+  * debian/patches/build_older_polkit.patch:
+    - removed, it's not needed anymore now that Debian updated to a
+      recent polkit version
+  * debian/power-profiles-daemon.maintscript:
+    - remove obsolete conffile (Closes: #1021746)
+
+ -- Sebastien Bacher <seb128@ubuntu.com>  Tue, 06 Jun 2023 13:36:10 +0200
+
+power-profiles-daemon (0.12-1) unstable; urgency=medium
+
+  * Team upload
+  * New upstream release
+  * Add debian/docs to install NEWS and README.md
+
+ -- Jeremy Bicha <jbicha@ubuntu.com>  Sun, 14 Aug 2022 10:04:33 -0400
+
+power-profiles-daemon (0.11.1-1) unstable; urgency=medium
+
+  * New upstream version
+  * debian/patches/build_older_polkit.patch:
+    - refresh the patch to also lower the polkit requirement update
+
+ -- Sebastien Bacher <seb128@ubuntu.com>  Fri, 24 Jun 2022 13:23:07 +0200
+
+power-profiles-daemon (0.10.1-3) unstable; urgency=medium
+
+  * debian/patches/remove_tlp_conflict.patch:
+    - remove the systemd unit conflict on tlp.service. We don't want that in
+      Ubuntu since we patch tlp to not do performance modes changes when
+      power-profiles-daemon is active but the change can be included in
+      Debian also since the tlp maintainer made the packages conflict
+      which means we can't end up installed together.
+
+ -- Sebastien Bacher <seb128@ubuntu.com>  Sat, 05 Mar 2022 18:17:30 +0100
+
+power-profiles-daemon (0.10.1-2) unstable; urgency=medium
+
+  * debian/tests: remove for now since changes in the new versions are
+    creating issues and also upstream pointed out that those are not useful
+    as integration tests since there is basically no rdepends
+
+ -- Sebastien Bacher <seb128@ubuntu.com>  Fri, 12 Nov 2021 09:46:29 +0100
+
+power-profiles-daemon (0.10.1-1) unstable; urgency=medium
+
+  * New upstream version
+  * debian/control:
+    - Build-Depends on libpolkit-gobject-1-dev and libxml2-utils
+  * debian/patches/build_older_polkit.patch:
+    - fix the build with older polkit versions
+
+ -- Sebastien Bacher <seb128@ubuntu.com>  Mon, 08 Nov 2021 16:31:07 +0100
+
+power-profiles-daemon (0.8.1-1) experimental; urgency=medium
+
+  * New upstream version
+
+ -- Sebastien Bacher <seb128@ubuntu.com>  Tue, 15 Jun 2021 15:29:30 +0200
+
+power-profiles-daemon (0.1-5) experimental; urgency=medium
+
+  * Don't split the test into a separate binary, it's not useful
+
+ -- Sebastien Bacher <seb128@ubuntu.com>  Wed, 10 Mar 2021 11:34:36 +0100
+
+power-profiles-daemon (0.1-3) experimental; urgency=medium
+
+  * Resolve the problems pointed during the NEW review
+  * debian/control:
+    - set an Uploaders to fix the lintian error no-human-maintainers
+  * debian/copyright:
+    - include a missing xml from the docs dir which is GFDL
+
+ -- Sebastien Bacher <seb128@ubuntu.com>  Fri, 05 Mar 2021 17:10:23 +0100
+
+power-profiles-daemon (0.1-2) experimental; urgency=medium
+
+  * debian/copyright:
+    - updated, the tests have different copyright and license
+
+ -- Sebastien Bacher <seb128@ubuntu.com>  Fri, 19 Feb 2021 17:01:27 +0100
+
+power-profiles-daemon (0.1-1) experimental; urgency=medium
+
+  * Initial release (Closes: #983108)
+
+ -- Sebastien Bacher <seb128@ubuntu.com>  Mon, 19 Feb 2018 16:03:29 +0100

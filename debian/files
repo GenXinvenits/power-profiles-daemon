@@ -1,0 +1,3 @@
+power-profiles-daemon-dbgsym_0.31-1~tm20171_amd64.ddeb debug optional architecture=amd64 automatic=yes
+power-profiles-daemon_0.31-1~tm20171_amd64.buildinfo admin optional
+power-profiles-daemon_0.31-1~tm20171_amd64.deb admin optional architecture=amd64
