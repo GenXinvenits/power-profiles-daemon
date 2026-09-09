@@ -720,6 +720,21 @@ effective_hold_profile (PpdApp *data)
 }
 
 static void
+driver_profiles_changed_cb (GObject    *gobject,
+                            GParamSpec *pspec,
+                            gpointer    user_data)
+{
+  PpdApp *data = user_data;
+  PpdDriver *driver = PPD_DRIVER (gobject);
+
+  g_debug ("Driver '%s' profile support changed to 0x%X",
+           ppd_driver_get_driver_name (driver),
+           ppd_driver_get_profiles (driver));
+
+  send_dbus_event (data, PROP_PROFILES);
+}
+
+static void
 driver_performance_degraded_changed_cb (GObject    *gobject,
                                         GParamSpec *pspec,
                                         gpointer    user_data)
@@ -1669,10 +1684,13 @@ start_profile_drivers (PpdApp *data)
 
       g_info ("Driver '%s' loaded", ppd_driver_get_driver_name (driver));
 
+      g_signal_connect (G_OBJECT (driver), "notify::profiles",
+                        G_CALLBACK (driver_profiles_changed_cb), data);
       g_signal_connect (G_OBJECT (driver), "notify::performance-degraded",
                         G_CALLBACK (driver_performance_degraded_changed_cb), data);
       g_signal_connect (G_OBJECT (driver), "profile-changed",
                         G_CALLBACK (driver_profile_changed_cb), data);
+
       continue;
     }
 

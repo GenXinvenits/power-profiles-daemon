@@ -68,7 +68,7 @@ profile_to_acpi_platform_profile_value (PpdDriverPlatformProfile *self,
   case PPD_PROFILE_BALANCED:
     return "balanced";
   case PPD_PROFILE_BALANCED_PERFORMANCE:
-    return "balanced_performance";
+    return "balanced-performance";
   case PPD_PROFILE_PERFORMANCE:
     return "performance";
   }
@@ -93,7 +93,7 @@ acpi_platform_profile_value_to_profile (const char *str)
   if (g_str_equal (str, "balanced"))
     return PPD_PROFILE_BALANCED;
 
-  if (g_str_equal (str, "balanced_performance"))
+  if (g_str_equal (str, "balanced-performance"))
     return PPD_PROFILE_BALANCED_PERFORMANCE;
 
   if (g_str_equal (str, "cool"))
@@ -312,7 +312,7 @@ ppd_driver_platform_profile_probe (PpdDriver  *driver)
     return PPD_PROBE_RESULT_FAIL;
   self->probe_result = verify_acpi_platform_profile_choices (self);
   if (self->probe_result == PPD_PROBE_RESULT_SUCCESS &&
-      g_strv_contains ((const char * const*) self->profile_choices, "balanced_performance"))
+      g_strv_contains ((const char * const*) self->profile_choices, "balanced-performance"))
     g_object_set (G_OBJECT (self),
                   "profiles", PPD_PROFILE_PERFORMANCE | PPD_PROFILE_BALANCED_PERFORMANCE | PPD_PROFILE_BALANCED | PPD_PROFILE_POWER_SAVER,
                   NULL);
