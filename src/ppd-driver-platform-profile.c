@@ -186,6 +186,20 @@ update_dytc_lapmode_state (PpdDriverPlatformProfile *self)
 }
 
 static void
+update_acpi_platform_profile_state (PpdDriverPlatformProfile *self)
+{
+  PpdProfile new_profile;
+
+  new_profile = read_platform_profile ();
+  if (new_profile == PPD_PROFILE_UNSET ||
+      new_profile == self->acpi_platform_profile)
+    return;
+
+  self->acpi_platform_profile = new_profile;
+  ppd_driver_emit_profile_changed (PPD_DRIVER (self), new_profile);
+}
+
+static void
 lapmode_changed (GFileMonitor      *monitor,
                  GFile             *file,
                  GFile             *other_file,
