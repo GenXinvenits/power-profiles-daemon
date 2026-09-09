@@ -2,7 +2,7 @@
  * Copyright (c) 2020 Bastien Nocera <hadess@hadess.net>
  *
  * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 3 as published by
+ * under the terms of the GNU General Public License as published by
  * the Free Software Foundation.
  *
  */
@@ -106,12 +106,6 @@ acpi_platform_profile_value_to_profile (const char *str)
 
   g_debug ("Unhandled ACPI platform profile '%s'", str);
   g_return_val_if_reached (PPD_PROFILE_UNSET);
-}
-
-static PpdPowerChangedReason
-get_power_changed_reason (PpdDriverPlatformProfile *self)
-{
-  return self->power_changed_reason;
 }
 
 static PpdProfile
@@ -258,7 +252,6 @@ ppd_driver_platform_profile_activate_profile (PpdDriver                   *drive
 
   g_return_val_if_fail (self->acpi_platform_profile_mon, FALSE);
 
-  self->selected_profile = profile;
   platform_profile_value = profile_to_acpi_platform_profile_value (self, profile);
 
   platform_profile_path = ppd_utils_get_sysfs_path (ACPI_PLATFORM_PROFILE_PATH);
@@ -276,6 +269,7 @@ ppd_driver_platform_profile_activate_profile (PpdDriver                   *drive
              platform_profile_value,
              ppd_profile_to_str (profile));
     self->acpi_platform_profile = profile;
+    self->selected_profile = profile;
     return TRUE;
   }
 
@@ -294,6 +288,7 @@ ppd_driver_platform_profile_activate_profile (PpdDriver                   *drive
            platform_profile_value,
            ppd_profile_to_str (profile));
   self->acpi_platform_profile = profile;
+  self->selected_profile = profile;
   return TRUE;
 }
 
@@ -430,4 +425,12 @@ ppd_driver_platform_profile_init (PpdDriverPlatformProfile *self)
   self->probe_result = PPD_PROBE_RESULT_UNSET;
   self->selected_profile = PPD_PROFILE_UNSET;
   self->power_changed_reason = PPD_POWER_CHANGED_REASON_UNKNOWN;
+  self->acpi_platform_profile = PPD_PROFILE_UNSET;
+  self->lapmode = -1;
+}
+
+PpdDriver *
+ppd_driver_platform_profile_new (void)
+{
+  return PPD_DRIVER (g_object_new (PPD_TYPE_DRIVER_PLATFORM_PROFILE, NULL));
 }
