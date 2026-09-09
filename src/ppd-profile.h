@@ -33,6 +33,7 @@ typedef enum {
  * PpdProfile:
  * @PPD_PROFILE_POWER_SAVER: "power-saver", the battery saving profile
  * @PPD_PROFILE_BALANCED: balanced, the default profile
+ * @PPD_PROFILE_BALANCED_PERFORMANCE: balanced performance, between balanced and performance.
  * @PPD_PROFILE_PERFORMANCE: as fast as possible, a profile that does
  *   not care about noise or battery consumption, only available
  *   on some systems.
@@ -40,9 +41,10 @@ typedef enum {
  * The different profiles available for users to select.
  */
 typedef enum {
-  PPD_PROFILE_POWER_SAVER  = 1 << 0,
-  PPD_PROFILE_BALANCED     = 1 << 1,
-  PPD_PROFILE_PERFORMANCE  = 1 << 2
+  PPD_PROFILE_POWER_SAVER          = 1 << 0,
+  PPD_PROFILE_BALANCED             = 1 << 1,
+  PPD_PROFILE_PERFORMANCE          = 1 << 2,
+  PPD_PROFILE_BALANCED_PERFORMANCE = 1 << 3
 } PpdProfile;
 
 /**
@@ -50,7 +52,7 @@ typedef enum {
  * @PPD_POWER_CHANGED_REASON_UNKNOWN: the power state is now unknown.
  *   This can happen if the power notification service is no longer available.
  * @PPD_POWER_CHANGED_REASON_AC: the power source is now AC.
- * @PPD_POWER_CHANGED_REASON_BATTERY: the power source is battery.
+ * @PPD_POWER_CHANGED_REASON_BATTERY: the power source is now battery.
 
  * Drivers or actions can use this information to decide what to do within a
  * given profile.
@@ -61,7 +63,7 @@ typedef enum{
   PPD_POWER_CHANGED_REASON_BATTERY,
 } PpdPowerChangedReason;
 
-#define PPD_PROFILE_ALL   (PPD_PROFILE_BALANCED | PPD_PROFILE_POWER_SAVER | PPD_PROFILE_PERFORMANCE)
+#define PPD_PROFILE_ALL   (PPD_PROFILE_BALANCED | PPD_PROFILE_POWER_SAVER | PPD_PROFILE_PERFORMANCE | PPD_PROFILE_BALANCED_PERFORMANCE)
 #define PPD_PROFILE_UNSET (0)
 
 const char *ppd_profile_to_str (PpdProfile profile);
