@@ -374,7 +374,7 @@ class Tests(dbusmock.DBusTestCase):
         )
         self.write_file_contents(
             os.path.join(acpi_dir, "platform_profile_choices"),
-            "low-power balanced performance\n",
+            "low-power balanced balanced-performance performance\n",
         )
 
     def create_custom_platform_profile(self):
@@ -594,7 +594,7 @@ class Tests(dbusmock.DBusTestCase):
         self.start_daemon()
 
         profiles = self.get_dbus_property("Profiles")
-        self.assertEqual(len(profiles), 3)
+        self.assertEqual(len(profiles), 4)
         self.assertEqual(self.get_dbus_property("PerformanceInhibited"), "")
 
     def test_multi_degredation(self):
@@ -656,7 +656,7 @@ class Tests(dbusmock.DBusTestCase):
         self.start_daemon()
 
         profiles = self.get_dbus_property("Profiles")
-        self.assertEqual(len(profiles), 3)
+        self.assertEqual(len(profiles), 4)
         self.assertEqual(self.get_dbus_property("ActiveProfile"), "balanced")
 
         self.set_dbus_property("ActiveProfile", GLib.Variant.new_string("performance"))
@@ -708,7 +708,7 @@ class Tests(dbusmock.DBusTestCase):
         self.start_daemon()
 
         profiles = self.get_dbus_property("Profiles")
-        self.assertEqual(len(profiles), 3)
+        self.assertEqual(len(profiles), 4)
         self.assertEqual(profiles[0]["Driver"], "multiple")
         self.assertEqual(profiles[0]["CpuDriver"], "intel_pstate")
         self.assertEqual(profiles[0]["Profile"], "power-saver")
@@ -740,7 +740,7 @@ class Tests(dbusmock.DBusTestCase):
         self.start_daemon()
 
         profiles = self.get_dbus_property("Profiles")
-        self.assertEqual(len(profiles), 3)
+        self.assertEqual(len(profiles), 4)
         self.assertEqual(profiles[0]["Driver"], "multiple")
         self.assertEqual(profiles[0]["CpuDriver"], "intel_pstate")
         self.assertEqual(profiles[0]["PlatformDriver"], "platform_profile")
@@ -774,7 +774,7 @@ class Tests(dbusmock.DBusTestCase):
         self.assert_file_eventually_contains(gov_path, "powersave")
 
         profiles = self.get_dbus_property("Profiles")
-        self.assertEqual(len(profiles), 3)
+        self.assertEqual(len(profiles), 4)
         self.assertEqual(profiles[0]["Driver"], "multiple")
         self.assertEqual(profiles[0]["CpuDriver"], "intel_pstate")
         self.assertEqual(profiles[0]["Profile"], "power-saver")
@@ -1510,7 +1510,7 @@ class Tests(dbusmock.DBusTestCase):
         self.start_daemon()
 
         profiles = self.get_dbus_property("Profiles")
-        self.assertEqual(len(profiles), 3)
+        self.assertEqual(len(profiles), 4)
         self.assertEqual(profiles[0]["Driver"], "platform_profile")
         self.assertEqual(profiles[0]["PlatformDriver"], "platform_profile")
         self.assertEqual(profiles[0]["Profile"], "power-saver")
@@ -1921,16 +1921,16 @@ class Tests(dbusmock.DBusTestCase):
         acpi_dir = os.path.join(self.testbed.get_root_dir(), "sys/firmware/acpi/")
         self.write_file_contents(
             os.path.join(acpi_dir, "platform_profile_choices"),
-            "low-power\nbalanced\nperformance\n",
+            "low-power\nbalanced\nbalanced-performance\nperformance\n",
         )
         self.write_file_contents(
             os.path.join(acpi_dir, "platform_profile"), "performance\n"
         )
 
         # Wait for profiles to get reloaded
-        self.assert_eventually(lambda: len(self.get_dbus_property("Profiles")) == 3)
+        self.assert_eventually(lambda: len(self.get_dbus_property("Profiles")) == 4)
         profiles = self.get_dbus_property("Profiles")
-        self.assertEqual(len(profiles), 3)
+        self.assertEqual(len(profiles), 4)
         # Was set in platform_profile before we loaded the drivers
         self.assertEqual(self.get_dbus_property("ActiveProfile"), "balanced")
         self.assertEqual(self.get_dbus_property("PerformanceDegraded"), "")
@@ -1979,7 +1979,7 @@ class Tests(dbusmock.DBusTestCase):
 
         self.start_daemon()
         profiles = self.get_dbus_property("Profiles")
-        self.assertEqual(len(profiles), 3)
+        self.assertEqual(len(profiles), 4)
         self.assertEqual(profiles[0]["Driver"], "platform_profile")
         self.assertEqual(profiles[0]["PlatformDriver"], "platform_profile")
         self.assertEqual(profiles[0]["Profile"], "power-saver")
@@ -1991,6 +1991,17 @@ class Tests(dbusmock.DBusTestCase):
         self.assertEqual(self.get_dbus_property("ActiveProfile"), "power-saver")
         self.assertEqual(
             self.read_sysfs_file("sys/firmware/acpi/platform_profile"), b"quiet"
+        )
+
+        self.set_dbus_property(
+            "ActiveProfile", GLib.Variant.new_string("balanced-performance")
+        )
+        self.assertEqual(
+            self.get_dbus_property("ActiveProfile"), "balanced-performance"
+        )
+        self.assertEqual(
+            self.read_sysfs_file("sys/firmware/acpi/platform_profile"),
+            b"balanced-performance"
         )
 
     def test_custom_acpi_platform_profile(self):
@@ -2010,7 +2021,7 @@ class Tests(dbusmock.DBusTestCase):
         self.start_daemon()
 
         profiles = self.get_dbus_property("Profiles")
-        self.assertEqual(len(profiles), 3)
+        self.assertEqual(len(profiles), 4)
 
         cookie = self.call_dbus_method(
             "HoldProfile",
@@ -2253,7 +2264,7 @@ class Tests(dbusmock.DBusTestCase):
         self.start_daemon()
 
         profiles = self.get_dbus_property("Profiles")
-        self.assertEqual(len(profiles), 3)
+        self.assertEqual(len(profiles), 4)
         self.assertEqual(self.get_dbus_property("ActiveProfile"), "balanced")
 
         # Test every order of holding and releasing power-saver and performance
@@ -2360,7 +2371,7 @@ class Tests(dbusmock.DBusTestCase):
         acpi_dir = os.path.join(self.testbed.get_root_dir(), "sys/firmware/acpi/")
         self.write_file_contents(
             os.path.join(acpi_dir, "platform_profile_choices"),
-            "low-power\nbalanced\nperformance\n",
+            "low-power\nbalanced\nbalanced-performance\nperformance\n",
         )
         self.write_file_contents(
             os.path.join(acpi_dir, "platform_profile"), "performance\n"
@@ -2442,7 +2453,7 @@ class Tests(dbusmock.DBusTestCase):
         self.start_daemon(["--disable-upower"])
 
         profiles = self.get_dbus_property("Profiles")
-        self.assertEqual(len(profiles), 3)
+        self.assertEqual(len(profiles), 4)
         self.assertEqual(self.get_dbus_property("PerformanceDegraded"), "")
 
         energy_prefs = os.path.join(dir1, "energy_performance_preference")
@@ -2483,7 +2494,7 @@ class Tests(dbusmock.DBusTestCase):
         self.start_daemon()
 
         profiles = self.get_dbus_property("Profiles")
-        self.assertEqual(len(profiles), 3)
+        self.assertEqual(len(profiles), 4)
         self.assertEqual(self.get_dbus_property("PerformanceDegraded"), "")
 
         energy_prefs = os.path.join(dir1, "energy_performance_preference")
@@ -2552,7 +2563,7 @@ class Tests(dbusmock.DBusTestCase):
         self.start_daemon()
 
         profiles = self.get_dbus_property("Profiles")
-        self.assertEqual(len(profiles), 3)
+        self.assertEqual(len(profiles), 4)
         self.assertEqual(self.get_dbus_property("PerformanceDegraded"), "")
 
     def test_powerprofilesctl_configure_battery_aware_command(self):
