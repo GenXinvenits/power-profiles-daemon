@@ -56,7 +56,7 @@ ppd_driver_intel_pstate_constructor (GType                  type,
                                                                               construct_params);
   g_object_set (object,
                 "driver-name", "intel_pstate",
-                "profiles", PPD_PROFILE_PERFORMANCE | PPD_PROFILE_BALANCED | PPD_PROFILE_POWER_SAVER,
+                "profiles", PPD_PROFILE_PERFORMANCE | PPD_PROFILE_BALANCED_PERFORMANCE | PPD_PROFILE_BALANCED | PPD_PROFILE_POWER_SAVER,
                 NULL);
 
   return object;
@@ -299,7 +299,9 @@ profile_to_epp_pref (PpdProfile profile, gboolean battery)
   case PPD_PROFILE_POWER_SAVER:
     return "power";
   case PPD_PROFILE_BALANCED:
-    return battery ? "balance_power" : "balance_performance";
+    return "balance_power";
+  case PPD_PROFILE_BALANCED_PERFORMANCE:
+    return "balance_performance";
   case PPD_PROFILE_PERFORMANCE:
     return "performance";
   }
@@ -317,6 +319,8 @@ profile_to_epb_pref (PpdProfile profile, gboolean battery)
     return "15";
   case PPD_PROFILE_BALANCED:
     return battery ? "8" : "6";
+  case PPD_PROFILE_BALANCED_PERFORMANCE:
+    return "6";
   case PPD_PROFILE_PERFORMANCE:
     return "0";
   }
