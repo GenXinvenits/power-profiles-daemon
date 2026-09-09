@@ -33,6 +33,75 @@ they are also expected to adjust the behavior of the desktop depending on the mo
 such as turning the screen off after inaction more aggressively when in power-saver
 mode.
 
+## TM2017 platform-profile behavior
+
+This `0.31` branch includes TM2017-specific handling for the kernel `platform_profile`
+interface.
+
+The TM2017 hardware provides four distinct hardware power modes:
+
+- `low-power`
+- `balanced`
+- `balanced-performance`
+- `performance`
+
+However, power-profiles-daemon exposes the standard three logical profiles:
+
+- `power-saver`
+- `balanced`
+- `performance`
+
+`balanced-performance` is a real, distinct hardware power mode. It is not exposed as
+a fourth PPD profile. Instead, it is automatically selected by PPD when the `balanced`
+profile is active and the system is connected to AC power.
+
+### Profile mapping
+
+| PPD profile | Power source | Hardware power mode |
+|---|---|---|
+| `power-saver` | AC or battery | `low-power` |
+| `balanced` | Battery | `balanced` |
+| `balanced` | AC | `balanced-performance` |
+| `performance` | AC or battery | `performance` |
+
+### Power-source-aware balanced mode
+
+When `balanced` is selected, power-profiles-daemon uses UPower power-source change
+notifications to select the appropriate TM2017 hardware power mode:
+
+```text
+Battery -> balanced
+AC      -> balanced-performance
+```
+
+When `power-saver` or `performance` is selected, power-source changes do not alter
+the selected hardware power mode:
+
+```text
+power-saver  -> low-power
+performance  -> performance
+```
+
+This keeps the D-Bus interface at three PPD profiles while allowing the TM2017
+hardware's four power modes to be used correctly.
+
+### Previous TM2017 behavior
+
+The earlier TM2017 implementation exposed all four hardware power modes directly
+through power-profiles-daemon:
+
+```text
+low-power
+balanced
+balanced-performance
+performance
+```
+
+The `0.31` implementation separates the PPD logical profile layer from the hardware
+power-mode layer. `balanced-performance` remains fully supported as a hardware power
+mode, but is automatically selected for PPD's `balanced` profile when AC power is
+available.
+
 ## How to use
 
 There are interfaces to switch profiles in the latest versions of KDE and GNOME. Those
@@ -94,7 +163,7 @@ If disabled, it can be re-renabled using:
 If `power-profiles-daemon` refuses to start, it's likely that you have [a conflicting
 service installed and running](data/power-profiles-daemon.service.in#L3), or your
 distribution ships [a version of tlp that actively breaks power-profiles-daemon](https://bugzilla.redhat.com/show_bug.cgi?id=2028701#c11),
-or you use the [upstream package](https://github.com/linrunner/TLP/commit/6a9388e1af95051a90a33b4014af1158dfa241f6).
+or you use the [upstream package](https://github.com/linrunner/TLP/commit/6a9388e1af95051a90a33b4014af1158dfa241f).
 
 ```sh
 systemctl unmask power-profiles-daemon.service
@@ -168,8 +237,7 @@ placeholder driver will be used, and there won't be a performance mode.
 
 Finally, if the Intel P-State scaling driver is used in `active` mode, the P-State
 scaling governor will be changed to `powersave` as it is the only P-State scaling
-governor that allows for the "Energy vs Performance Hints" to be taken into consideration,
-ie. the only P-State scaling governor that allows HWP to work.
+governor that allows HWP to work.
 
 For more information, please refer to the [Intel P-State scaling driver documentation](https://www.kernel.org/doc/html/v5.17/admin-guide/pm/intel_pstate.html)
 and the [Intel Performance and Energy Bias Hint](https://www.kernel.org/doc/html/v5.17/admin-guide/pm/intel_epb.html).
