@@ -714,7 +714,7 @@ class Tests(dbusmock.DBusTestCase):
         self.assertEqual(profiles[0]["Profile"], "power-saver")
 
         energy_prefs = os.path.join(dir2, "energy_performance_preference")
-        self.assert_file_eventually_contains(energy_prefs, "balance_performance")
+        self.assert_file_eventually_contains(energy_prefs, "balance_power")
 
         # Set performance mode
         self.set_dbus_property("ActiveProfile", GLib.Variant.new_string("performance"))
@@ -780,7 +780,7 @@ class Tests(dbusmock.DBusTestCase):
         self.assertEqual(profiles[0]["Profile"], "power-saver")
 
         self.assert_file_eventually_contains(
-            os.path.join(dir1, "energy_performance_preference"), "balance_performance"
+            os.path.join(dir1, "energy_performance_preference"), "balance_power"
         )
 
     def test_intel_pstate_reapply_on_resume_from_sleep_disable_logind(self):
@@ -870,7 +870,7 @@ class Tests(dbusmock.DBusTestCase):
         )
 
         self.assert_file_eventually_contains(
-            energy_prefs, "balance_performance", timeout=3000, keep_checking=100
+            energy_prefs, "balance_power", timeout=3000, keep_checking=100
         )
 
     def test_intel_pstate_error(self):
@@ -976,7 +976,7 @@ class Tests(dbusmock.DBusTestCase):
         self.start_daemon()
 
         profiles = self.get_dbus_property("Profiles")
-        self.assertEqual(len(profiles), 3)
+        self.assertEqual(len(profiles), 4)
         self.assertEqual(profiles[0]["Driver"], "multiple")
         self.assertEqual(profiles[0]["CpuDriver"], "intel_pstate")
         self.assertEqual(profiles[0]["PlatformDriver"], "placeholder")
@@ -1139,13 +1139,13 @@ class Tests(dbusmock.DBusTestCase):
             self.read_sysfs_file(
                 "sys/devices/system/cpu/cpufreq/policy0/energy_performance_preference"
             ),
-            b"balance_performance",
+            b"balance_power",
         )
         self.assertEqual(
             self.read_sysfs_file(
                 "sys/devices/system/cpu/cpufreq/policy1/energy_performance_preference"
             ),
-            b"balance_performance",
+            b"balance_power",
         )
 
     # pylint: disable=too-many-statements
@@ -1555,7 +1555,7 @@ class Tests(dbusmock.DBusTestCase):
         os.environ["POWER_PROFILE_DAEMON_FAKE_DRIVER"] = "1"
         self.start_daemon()
         profiles = self.get_dbus_property("Profiles")
-        self.assertEqual(len(profiles), 3)
+        self.assertEqual(len(profiles), 4)
         self.stop_daemon()
 
         del os.environ["POWER_PROFILE_DAEMON_FAKE_DRIVER"]
@@ -2001,7 +2001,7 @@ class Tests(dbusmock.DBusTestCase):
         )
         self.assertEqual(
             self.read_sysfs_file("sys/firmware/acpi/platform_profile"),
-            b"balanced-performance"
+            b"balanced_performance"
         )
 
     def test_custom_acpi_platform_profile(self):
@@ -2459,12 +2459,12 @@ class Tests(dbusmock.DBusTestCase):
         energy_prefs = os.path.join(dir1, "energy_performance_preference")
         scaling_governor = os.path.join(dir1, "scaling_governor")
 
-        self.assert_file_eventually_contains(energy_prefs, "balance_performance")
+        self.assert_file_eventually_contains(energy_prefs, "balance_power")
         self.assert_file_eventually_contains(scaling_governor, "powersave")
 
         stop_upowerd()
 
-        self.assert_file_eventually_contains(energy_prefs, "balance_performance")
+        self.assert_file_eventually_contains(energy_prefs, "balance_power")
 
     def test_intel_pstate_upower(self):
         # Create CPU with preference
@@ -2505,20 +2505,20 @@ class Tests(dbusmock.DBusTestCase):
 
         stop_upowerd()
 
-        self.assert_file_eventually_contains(energy_prefs, "balance_performance")
+        self.assert_file_eventually_contains(energy_prefs, "balance_power")
 
         _, upowerd_obj, stop_upowerd = self.start_dbus_template(
             "upower",
             {"DaemonVersion": "0.99", "OnBattery": False},
         )
 
-        self.assert_file_eventually_contains(energy_prefs, "balance_performance")
+        self.assert_file_eventually_contains(energy_prefs, "balance_power")
 
         upowerd_obj.Set("org.freedesktop.UPower", "OnBattery", True)
         self.assert_file_eventually_contains(energy_prefs, "balance_power")
 
         upowerd_obj.Set("org.freedesktop.UPower", "OnBattery", False)
-        self.assert_file_eventually_contains(energy_prefs, "balance_performance")
+        self.assert_file_eventually_contains(energy_prefs, "balance_power")
 
         self.stop_daemon()
 
@@ -2527,13 +2527,13 @@ class Tests(dbusmock.DBusTestCase):
 
         self.start_daemon()
 
-        self.assert_file_eventually_contains(energy_prefs, "balance_performance")
+        self.assert_file_eventually_contains(energy_prefs, "balance_power")
 
         _, upowerd_obj, _ = self.start_dbus_template(
             "upower",
             {"DaemonVersion": "0.99", "OnBattery": False},
         )
-        self.assert_file_eventually_contains(energy_prefs, "balance_performance")
+        self.assert_file_eventually_contains(energy_prefs, "balance_power")
 
         upowerd_obj.Set("org.freedesktop.UPower", "OnBattery", True)
         self.assert_file_eventually_contains(energy_prefs, "balance_power")

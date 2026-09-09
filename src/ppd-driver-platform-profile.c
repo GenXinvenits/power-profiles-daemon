@@ -48,7 +48,7 @@ ppd_driver_platform_profile_constructor (GType                  type,
                                                                                    construct_params);
   g_object_set (object,
                 "driver-name", "platform_profile",
-                "profiles", PPD_PROFILE_PERFORMANCE | PPD_PROFILE_BALANCED_PERFORMANCE | PPD_PROFILE_BALANCED | PPD_PROFILE_POWER_SAVER,
+                "profiles", PPD_PROFILE_PERFORMANCE | PPD_PROFILE_BALANCED | PPD_PROFILE_POWER_SAVER,
                 NULL);
 
   return object;
@@ -311,6 +311,11 @@ ppd_driver_platform_profile_probe (PpdDriver  *driver)
   if (!save_platform_profile_choices (self))
     return PPD_PROBE_RESULT_FAIL;
   self->probe_result = verify_acpi_platform_profile_choices (self);
+  if (self->probe_result == PPD_PROBE_RESULT_SUCCESS &&
+      g_strv_contains ((const char * const*) self->profile_choices, "balanced_performance"))
+    g_object_set (G_OBJECT (self),
+                  "profiles", PPD_PROFILE_PERFORMANCE | PPD_PROFILE_BALANCED_PERFORMANCE | PPD_PROFILE_BALANCED | PPD_PROFILE_POWER_SAVER,
+                  NULL);
   if (self->probe_result == PPD_PROBE_RESULT_FAIL) {
     g_debug ("No supported platform_profile choices");
     return self->probe_result;
