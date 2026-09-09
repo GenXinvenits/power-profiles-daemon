@@ -8,7 +8,9 @@ unit_tests = []
 
 foreach integration_test : integration_tests
     r = run_command(python3, unittest_inspector, integration_test, check: true)
-    unit_tests += r.stdout().strip().split('\n').map((ut) => [integration_test, ut])
+    foreach ut : r.stdout().strip().split('\n')
+        unit_tests += [[integration_test, ut]]
+    endforeach
 endforeach
 
 valgrind = find_program('valgrind', required: false)
