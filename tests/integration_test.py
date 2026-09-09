@@ -277,7 +277,7 @@ class Tests(dbusmock.DBusTestCase):
         return self.props_proxy.Set("(ssv)", self.PP, name, value)
 
     def call_dbus_method(self, name, parameters):
-        """Call a method of the daemon D-BUS interface."""
+        """Call a method of the daemon D-Bus interface."""
         return self.proxy.call_sync(
             name, parameters, Gio.DBusCallFlags.NO_AUTO_START, -1, None
         )
@@ -355,7 +355,7 @@ class Tests(dbusmock.DBusTestCase):
         proc_dir = os.path.join(self.testbed.get_root_dir(), "proc/")
         os.makedirs(proc_dir)
         self.write_file_contents(
-            os.path.join(proc_dir, "cpuinfo"), "vendor_id\t: AuthenticAMD\n"
+            os.path.join(proc_dir, "cpuinfo"), "vendor_id	: AuthenticAMD\n"
         )
 
     def create_empty_platform_profile(self):
@@ -789,7 +789,8 @@ class Tests(dbusmock.DBusTestCase):
             self.testbed.get_root_dir(), "sys/devices/system/cpu/cpufreq/policy0/"
         )
         os.makedirs(dir1)
-        self.write_file_contents(os.path.join(dir1, "scaling_governor"), "performance\n")
+        gov_path = os.path.join(dir1, "scaling_governor")
+        self.write_file_contents(gov_path, "performance\n")
         energy_prefs = os.path.join(dir1, "energy_performance_preference")
         self.write_file_contents(energy_prefs, "performance\n")
         pstate_dir = os.path.join(
@@ -833,7 +834,8 @@ class Tests(dbusmock.DBusTestCase):
             self.testbed.get_root_dir(), "sys/devices/system/cpu/cpufreq/policy0/"
         )
         os.makedirs(dir1)
-        self.write_file_contents(os.path.join(dir1, "scaling_governor"), "performance\n")
+        gov_path = os.path.join(dir1, "scaling_governor")
+        self.write_file_contents(gov_path, "performance\n")
         energy_prefs = os.path.join(dir1, "energy_performance_preference")
         self.write_file_contents(energy_prefs, "performance\n")
         pstate_dir = os.path.join(
@@ -993,6 +995,513 @@ class Tests(dbusmock.DBusTestCase):
 
         self.assert_file_eventually_contains(energy_perf_bias, "0")
 
+    def test_action_blocklist(self):
+        """Test action blocklist works"""
+        self.start_daemon(["--block-action", "trickle_charge"])
+        self.assert_action_disabled("trickle_charge")
+
+    def test_driver_blocklist(self):
+        """Test driver blocklist works"""
+        # Create 2 CPUs with preferences
+        dir1 = os.path.join(
+            self.testbed.get_root_dir(), "sys/devices/system/cpu/cpufreq/policy0/"
+        )
+        os.makedirs(dir1)
+        scaling_governor = os.path.join(dir1, "scaling_governor")
+        self.write_file_contents(scaling_governor, "powersave\n")
+
+        prefs1 = os.path.join(dir1, "energy_performance_preference")
+        self.write_file_contents(prefs1, "performance\n")
+
+        dir2 = os.path.join(
+            self.testbed.get_root_dir(), "sys/devices/system/cpu/cpufreq/policy1/"
+        )
+        os.makedirs(dir2)
+        scaling_governor = os.path.join(dir2, "scaling_governor")
+        self.write_file_contents(scaling_governor, "powersave\n")
+        prefs2 = os.path.join(
+            dir2,
+            "energy_performance_preference",
+        )
+        self.write_file_contents(prefs2, "prformance\n")
+
+        # Create AMD P-State configuration
+        pstate_dir = os.path.join(
+            self.testbed.get_root_dir(), "sys/devices/system/cpu/amd_pstate"
+        )
+        os.makedirs(pstate_dir)
+        self.write_file_contents(os.path.join(pstate_dir, "status"), "active\n")
+
+        # create ACPI platform profile
+        self.create_platform_profile()
+        profile = os.path.join(
+            self.testbed.get_root_dir(), "sys/firmware/acpi/platform_profile"
+        )
+        self.assertNotEqual(profile, None)
+
+        # block platform profile
+        self.start_daemon(["--block-driver", "platform_profile"])
+        # Verify that only amd-pstate is loaded
+        profiles = self.get_dbus_property("Profiles")
+        self.assertEqual(len(profiles), 3)
+        self.assertEqual(profiles[0]["Driver"], "multiple")
+        self.assertEqual(profiles[0]["CpuDriver"], "amd_pstate")
+        self.assertEqual(profiles[0]["PlatformDriver"], "placeholder")
+
+        self.stop_daemon()
+
+        # block both drivers
+        self.start_daemon(
+            ["--block-driver", "amd_pstate", "--block-driver", "platform_profile"]
+        )
+        # Verify that only placeholder is loaded
+        profiles = self.get_dbus_property("Profiles")
+        self.assertEqual(len(profiles), 2)
+        self.assertEqual(profiles[0]["PlatformDriver"], "placeholder")
+
+    # pylint: disable=too-many-statements
+    def test_multi_driver_flows(self):
+        """Test corner cases associated with multiple drivers"""
+
+        # Create 2 CPUs with preferences
+        dir1 = os.path.join(
+            self.testbed.get_root_dir(), "sys/devices/system/cpu/cpufreq/policy0/"
+        )
+        os.makedirs(dir1)
+        self.write_file_contents(os.path.join(dir1, "scaling_governor"), "powersave\n")
+        prefs1 = os.path.join(dir1, "energy_performance_preference")
+        self.write_file_contents(prefs1, "performance\n")
+
+        dir2 = os.path.join(
+            self.testbed.get_root_dir(), "sys/devices/system/cpu/cpufreq/policy1/"
+        )
+        os.makedirs(dir2)
+        self.write_file_contents(os.path.join(dir2, "scaling_governor"), "powersave\n")
+        prefs2 = os.path.join(dir2, "energy_performance_preference")
+        self.write_file_contents(prefs2, "performance\n")
+
+        # Create AMD P-State configuration
+        pstate_dir = os.path.join(
+            self.testbed.get_root_dir(), "sys/devices/system/cpu/amd_pstate"
+        )
+        os.makedirs(pstate_dir)
+        self.write_file_contents(os.path.join(pstate_dir, "status"), "active\n")
+
+        # create ACPI platform profile
+        self.create_platform_profile()
+        profile = os.path.join(
+            self.testbed.get_root_dir(), "sys/firmware/acpi/platform_profile"
+        )
+
+        self.start_daemon()
+
+        # Verify that both drivers are loaded
+        profiles = self.get_dbus_property("Profiles")
+        self.assertEqual(len(profiles), 3)
+        self.assertEqual(profiles[0]["Driver"], "multiple")
+        self.assertEqual(profiles[0]["CpuDriver"], "amd_pstate")
+        self.assertEqual(profiles[0]["PlatformDriver"], "platform_profile")
+
+        # test both drivers can switch to power-saver
+        self.set_dbus_property("ActiveProfile", GLib.Variant.new_string("power-saver"))
+        self.assertEqual(self.get_dbus_property("ActiveProfile"), "power-saver")
+
+        # test both drivers can switch to performance
+        self.set_dbus_property("ActiveProfile", GLib.Variant.new_string("performance"))
+        self.assertEqual(self.get_dbus_property("ActiveProfile"), "performance")
+
+        # test both drivers can switch to balanced
+        self.set_dbus_property("ActiveProfile", GLib.Variant.new_string("balanced"))
+        self.assertEqual(self.get_dbus_property("ActiveProfile"), "balanced")
+
+        # test when CPU driver fails to write
+        self.change_immutable(prefs1, True)
+        with self.assertRaises(gi.repository.GLib.GError):
+            self.set_dbus_property(
+                "ActiveProfile", GLib.Variant.new_string("power-saver")
+            )
+        self.assertEqual(self.get_dbus_property("ActiveProfile"), "balanced")
+        self.assertEqual(
+            self.read_sysfs_file("sys/firmware/acpi/platform_profile"), b"balanced"
+        )
+        self.change_immutable(prefs1, False)
+
+        # test when platform driver fails to write
+        self.change_immutable(profile, True)
+        with self.assertRaises(gi.repository.GLib.GError):
+            self.set_dbus_property(
+                "ActiveProfile", GLib.Variant.new_string("power-saver")
+            )
+        self.assertEqual(self.get_dbus_property("ActiveProfile"), "balanced")
+
+        # make sure CPU was undone since platform failed
+        self.assertEqual(
+            self.read_sysfs_file(
+                "sys/devices/system/cpu/cpufreq/policy0/energy_performance_preference"
+            ),
+            b"balance_performance",
+        )
+        self.assertEqual(
+            self.read_sysfs_file(
+                "sys/devices/system/cpu/cpufreq/policy1/energy_performance_preference"
+            ),
+            b"balance_performance",
+        )
+
+    # pylint: disable=too-many-statements
+    def test_amd_pstate_state_machine(self):
+        # Create 2 CPUs with preferences
+        dir1 = os.path.join(
+            self.testbed.get_root_dir(), "sys/devices/system/cpu/cpufreq/policy0/"
+        )
+        os.makedirs(dir1)
+        self.write_file_contents(os.path.join(dir1, "scaling_governor"), "powersave\n")
+        self.write_file_contents(
+            os.path.join(dir1, "energy_performance_preference"), "performance\n"
+        )
+        dir2 = os.path.join(
+            self.testbed.get_root_dir(), "sys/devices/system/cpu/cpufreq/policy1/"
+        )
+        os.makedirs(dir2)
+        self.write_file_contents(os.path.join(dir2, "scaling_governor"), "powersave\n")
+        self.write_file_contents(
+            os.path.join(dir2, "energy_performance_preference"), "performance\n"
+        )
+
+        # Create AMD P-State configuration
+        pstate_dir = os.path.join(
+            self.testbed.get_root_dir(), "sys/devices/system/cpu/amd_pstate"
+        )
+        os.makedirs(pstate_dir)
+        self.write_file_contents(os.path.join(pstate_dir, "status"), "active\n")
+
+        self.start_daemon()
+
+        profiles = self.get_dbus_property("Profiles")
+        self.assertEqual(len(profiles), 3)
+
+        self.assertEqual(profiles[0]["Driver"], "multiple")
+        self.assertEqual(profiles[0]["CpuDriver"], "amd_pstate")
+        self.assertEqual(profiles[0]["Profile"], "power-saver")
+
+        energy_prefs = os.path.join(dir2, "energy_performance_preference")
+        scaling_governor = os.path.join(dir2, "scaling_governor")
+
+        self.assert_file_eventually_contains(energy_prefs, "balance_performance")
+        self.assert_file_eventually_contains(scaling_governor, "powersave")
+
+        self.write_file_contents(os.path.join(pstate_dir, "status"), "passive\n")
+
+        # Set performance mode
+        self.set_dbus_property("ActiveProfile", GLib.Variant.new_string("performance"))
+        self.assertEqual(self.get_dbus_property("ActiveProfile"), "performance")
+
+        # ensure nothing changed
+        self.assert_file_eventually_contains(energy_prefs, "balance_performance")
+        self.assert_file_eventually_contains(scaling_governor, "powersave")
+
+    # pylint: disable=too-many-statements
+    def test_amd_pstate(self):
+        """AMD P-State driver (no UPower)"""
+
+        # Create 2 CPUs with preferences
+        dir1 = os.path.join(
+            self.testbed.get_root_dir(), "sys/devices/system/cpu/cpufreq/policy0/"
+        )
+        os.makedirs(dir1)
+        self.write_file_contents(os.path.join(dir1, "scaling_governor"), "powersave\n")
+        self.write_file_contents(
+            os.path.join(dir1, "energy_performance_preference"), "performance\n"
+        )
+        dir2 = os.path.join(
+            self.testbed.get_root_dir(), "sys/devices/system/cpu/cpufreq/policy1/"
+        )
+        os.makedirs(dir2)
+        self.write_file_contents(os.path.join(dir2, "scaling_governor"), "powersave\n")
+        self.write_file_contents(
+            os.path.join(dir2, "energy_performance_preference"), "performance\n"
+        )
+
+        # Create AMD P-State configuration
+        pstate_dir = os.path.join(
+            self.testbed.get_root_dir(), "sys/devices/system/cpu/amd_pstate"
+        )
+        os.makedirs(pstate_dir)
+        self.write_file_contents(os.path.join(pstate_dir, "status"), "active\n")
+
+        self.start_daemon()
+
+        profiles = self.get_dbus_property("Profiles")
+        self.assertEqual(len(profiles), 3)
+
+        self.assertEqual(profiles[0]["Driver"], "multiple")
+        self.assertEqual(profiles[0]["CpuDriver"], "amd_pstate")
+        self.assertEqual(profiles[0]["Profile"], "power-saver")
+
+        energy_prefs = os.path.join(dir2, "energy_performance_preference")
+        scaling_governor = os.path.join(dir2, "scaling_governor")
+
+        self.assert_file_eventually_contains(energy_prefs, "balance_performance")
+        self.assert_file_eventually_contains(scaling_governor, "powersave")
+
+        # Set performance mode
+        self.set_dbus_property("ActiveProfile", GLib.Variant.new_string("performance"))
+        self.assertEqual(self.get_dbus_property("ActiveProfile"), "performance")
+
+        self.assert_file_eventually_contains(energy_prefs, "performance")
+        self.assert_file_eventually_contains(scaling_governor, "performance")
+
+        # Set powersave mode
+        self.set_dbus_property("ActiveProfile", GLib.Variant.new_string("power-saver"))
+        self.assertEqual(self.get_dbus_property("ActiveProfile"), "power-saver")
+
+        self.assert_file_eventually_contains(energy_prefs, "power")
+        self.assert_file_eventually_contains(scaling_governor, "powersave")
+
+    # pylint: disable=too-many-statements
+    def test_amd_pstate_min_freq(self):
+        """AMD P-State driver min freq support"""
+        # Create 2 CPUs with preferences
+        dir1 = os.path.join(
+            self.testbed.get_root_dir(), "sys/devices/system/cpu/cpufreq/policy0/"
+        )
+        os.makedirs(dir1)
+        self.write_file_contents(os.path.join(dir1, "cpuinfo_min_freq"), "400000\n")
+        self.write_file_contents(os.path.join(dir1, "scaling_min_freq"), "400000\n")
+        self.write_file_contents(
+            os.path.join(dir1, "amd_pstate_lowest_nonlinear_freq"), "1114000\n"
+        )
+        self.write_file_contents(os.path.join(dir1, "scaling_governor"), "powersave\n")
+        self.write_file_contents(
+            os.path.join(dir1, "energy_performance_preference"), "performance\n"
+        )
+        dir2 = os.path.join(
+            self.testbed.get_root_dir(), "sys/devices/system/cpu/cpufreq/policy1/"
+        )
+        os.makedirs(dir2)
+        self.write_file_contents(os.path.join(dir2, "cpuinfo_min_freq"), "400000\n")
+        self.write_file_contents(os.path.join(dir2, "scaling_min_freq"), "400000\n")
+        self.write_file_contents(
+            os.path.join(dir2, "amd_pstate_lowest_nonlinear_freq"), "1114000\n"
+        )
+        self.write_file_contents(os.path.join(dir2, "scaling_governor"), "powersave\n")
+        self.write_file_contents(
+            os.path.join(dir2, "energy_performance_preference"), "performance\n"
+        )
+
+        # Create AMD P-State configuration
+        pstate_dir = os.path.join(
+            self.testbed.get_root_dir(), "sys/devices/system/cpu/amd_pstate"
+        )
+        os.makedirs(pstate_dir)
+        self.write_file_contents(os.path.join(pstate_dir, "status"), "active\n")
+
+        self.start_daemon()
+
+        profiles = self.get_dbus_property("Profiles")
+        self.assertEqual(len(profiles), 3)
+
+        self.assertEqual(profiles[0]["Driver"], "multiple")
+        self.assertEqual(profiles[0]["CpuDriver"], "amd_pstate")
+        self.assertEqual(profiles[0]["Profile"], "power-saver")
+
+        energy_prefs = os.path.join(dir2, "energy_performance_preference")
+        scaling_governor = os.path.join(dir2, "scaling_governor")
+        scaling_min_freq = os.path.join(dir2, "scaling_min_freq")
+
+        self.assert_file_eventually_contains(energy_prefs, "balance_performance")
+        self.assert_file_eventually_contains(scaling_governor, "powersave")
+        self.assert_file_eventually_contains(scaling_min_freq, "1114000")
+
+        # Set performance mode
+        self.set_dbus_property("ActiveProfile", GLib.Variant.new_string("performance"))
+        self.assertEqual(self.get_dbus_property("ActiveProfile"), "performance")
+
+        self.assert_file_eventually_contains(energy_prefs, "performance")
+        self.assert_file_eventually_contains(scaling_governor, "performance")
+        self.assert_file_eventually_contains(scaling_min_freq, "1114000")
+
+        # Set powersave mode
+        self.set_dbus_property("ActiveProfile", GLib.Variant.new_string("power-saver"))
+        self.assertEqual(self.get_dbus_property("ActiveProfile"), "power-saver")
+
+        self.assert_file_eventually_contains(energy_prefs, "power")
+        self.assert_file_eventually_contains(scaling_governor, "powersave")
+        self.assert_file_eventually_contains(scaling_min_freq, "400000")
+
+    # pylint: disable=too-many-statements
+    def test_amd_pstate_boost(self):
+        """AMD P-State driver boost support"""
+
+        # Create 2 CPUs with preferences
+        dir1 = os.path.join(
+            self.testbed.get_root_dir(), "sys/devices/system/cpu/cpufreq/policy0/"
+        )
+        os.makedirs(dir1)
+        self.write_file_contents(os.path.join(dir1, "boost"), "1\n")
+        self.write_file_contents(os.path.join(dir1, "scaling_governor"), "powersave\n")
+        self.write_file_contents(
+            os.path.join(dir1, "energy_performance_preference"), "performance\n"
+        )
+        dir2 = os.path.join(
+            self.testbed.get_root_dir(), "sys/devices/system/cpu/cpufreq/policy1/"
+        )
+        os.makedirs(dir2)
+        self.write_file_contents(os.path.join(dir2, "boost"), "1\n")
+        self.write_file_contents(os.path.join(dir2, "scaling_governor"), "powersave\n")
+        self.write_file_contents(
+            os.path.join(dir2, "energy_performance_preference"), "performance\n"
+        )
+
+        # Create AMD P-State configuration
+        pstate_dir = os.path.join(
+            self.testbed.get_root_dir(), "sys/devices/system/cpu/amd_pstate"
+        )
+        os.makedirs(pstate_dir)
+        self.write_file_contents(os.path.join(pstate_dir, "status"), "active\n")
+
+        self.start_daemon()
+
+        profiles = self.get_dbus_property("Profiles")
+        self.assertEqual(len(profiles), 3)
+
+        self.assertEqual(profiles[0]["Driver"], "multiple")
+        self.assertEqual(profiles[0]["CpuDriver"], "amd_pstate")
+        self.assertEqual(profiles[0]["Profile"], "power-saver")
+
+        energy_prefs = os.path.join(dir2, "energy_performance_preference")
+        scaling_governor = os.path.join(dir2, "scaling_governor")
+        boost = os.path.join(dir2, "boost")
+
+        self.assert_file_eventually_contains(energy_prefs, "balance_performance")
+        self.assert_file_eventually_contains(scaling_governor, "powersave")
+
+        # Set performance mode
+        self.set_dbus_property("ActiveProfile", GLib.Variant.new_string("performance"))
+        self.assertEqual(self.get_dbus_property("ActiveProfile"), "performance")
+
+        self.assert_file_eventually_contains(energy_prefs, "performance")
+        self.assert_file_eventually_contains(scaling_governor, "performance")
+        self.assert_file_eventually_contains(boost, "1")
+
+        # Set powersave mode
+        self.set_dbus_property("ActiveProfile", GLib.Variant.new_string("power-saver"))
+        self.assertEqual(self.get_dbus_property("ActiveProfile"), "power-saver")
+
+        self.assert_file_eventually_contains(energy_prefs, "power")
+        self.assert_file_eventually_contains(scaling_governor, "powersave")
+        self.assert_file_eventually_contains(boost, "0")
+
+    def test_amd_pstate_balance(self):
+        """AMD P-State driver (balance)"""
+
+        # Create CPU with preference
+        dir1 = os.path.join(
+            self.testbed.get_root_dir(), "sys/devices/system/cpu/cpufreq/policy0/"
+        )
+        os.makedirs(dir1)
+        gov_path = os.path.join(dir1, "scaling_governor")
+        self.write_file_contents(gov_path, "performance\n")
+        self.write_file_contents(
+            os.path.join(dir1, "energy_performance_preference"), "performance\n"
+        )
+        pstate_dir = os.path.join(
+            self.testbed.get_root_dir(), "sys/devices/system/cpu/amd_pstate"
+        )
+        os.makedirs(pstate_dir)
+        self.write_file_contents(os.path.join(pstate_dir, "status"), "active\n")
+
+        self.start_dbus_template(
+            "upower",
+            {"DaemonVersion": "0.99", "OnBattery": False},
+        )
+
+        self.start_daemon()
+
+        profiles = self.get_dbus_property("Profiles")
+        self.assertEqual(len(profiles), 3)
+        self.assertEqual(profiles[0]["Driver"], "multiple")
+        self.assertEqual(profiles[0]["CpuDriver"], "amd_pstate")
+        self.assertEqual(profiles[0]["Profile"], "power-saver")
+
+        # This matches what's written by ppd-driver-amd-pstate.c
+        energy_prefs = os.path.join(dir1, "energy_performance_preference")
+        self.assert_file_eventually_contains(energy_prefs, "balance_performance")
+
+        scaling_governor = os.path.join(dir1, "scaling_governor")
+        self.assert_file_eventually_contains(scaling_governor, "powersave")
+
+    def test_amd_pstate_error(self):
+        """AMD P-State driver in error state"""
+
+        pstate_dir = os.path.join(
+            self.testbed.get_root_dir(), "sys/devices/system/cpu/amd_pstate"
+        )
+        os.makedirs(pstate_dir)
+        self.write_file_contents(os.path.join(pstate_dir, "status"), "active\n")
+
+        dir1 = os.path.join(
+            self.testbed.get_root_dir(), "sys/devices/system/cpu/cpufreq/policy0/"
+        )
+        os.makedirs(dir1)
+        self.write_file_contents(os.path.join(dir1, "scaling_governor"), "powersave\n")
+        pref_path = os.path.join(dir1, "energy_performance_preference")
+        old_umask = os.umask(0o333)
+        self.write_file_contents(pref_path, "balance_performance\n")
+        os.umask(old_umask)
+        # Make file non-writable to root
+        self.change_immutable(pref_path, True)
+
+        self.start_daemon()
+
+        self.assertEqual(self.get_dbus_property("ActiveProfile"), "balanced")
+
+        # Error when setting performance mode
+        with self.assertRaises(gi.repository.GLib.GError):
+            self.set_dbus_property(
+                "ActiveProfile", GLib.Variant.new_string("performance")
+            )
+        self.assertEqual(self.get_dbus_property("ActiveProfile"), "balanced")
+
+        energy_prefs = os.path.join(dir1, "energy_performance_preference")
+        self.assert_file_eventually_contains(energy_prefs, "balance_performance\n")
+
+    def test_amd_pstate_passive(self):
+        """AMD P-State in passive mode -> placeholder"""
+
+        dir1 = os.path.join(
+            self.testbed.get_root_dir(), "sys/devices/system/cpu/cpufreq/policy0/"
+        )
+        os.makedirs(dir1)
+        self.write_file_contents(os.path.join(dir1, "scaling_governor"), "powersave\n")
+        self.write_file_contents(
+            os.path.join(dir1, "energy_performance_preference"), "balance_performance\n"
+        )
+
+        # Create AMD P-State configuration
+        pstate_dir = os.path.join(
+            self.testbed.get_root_dir(), "sys/devices/system/cpu/amd_pstate"
+        )
+        os.makedirs(pstate_dir)
+        self.write_file_contents(os.path.join(pstate_dir, "status"), "passive\n")
+
+        self.start_daemon()
+
+        profiles = self.get_dbus_property("Profiles")
+        self.assertEqual(len(profiles), 3)
+        self.assertEqual(profiles[0]["Driver"], "multiple")
+        self.assertEqual(profiles[0]["PlatformDriver"], "placeholder")
+        self.assertEqual(profiles[0]["CpuDriver"], "amd_pstate")
+        self.assertEqual(self.get_dbus_property("ActiveProfile"), "balanced")
+
+        # Set performance mode
+        self.set_dbus_property("ActiveProfile", GLib.Variant.new_string("performance"))
+        self.assertEqual(self.get_dbus_property("ActiveProfile"), "performance")
+
+        # Shouldn't have updated
+        energy_prefs = os.path.join(dir1, "energy_performance_preference")
+        self.assert_file_eventually_contains(energy_prefs, "balance_performance")
+
     def test_dytc_performance_driver(self):
         """Lenovo DYTC performance driver"""
 
@@ -1042,6 +1551,7 @@ class Tests(dbusmock.DBusTestCase):
 
     def test_fake_driver(self):
         """Test that the fake driver works"""
+
         os.environ["POWER_PROFILE_DAEMON_FAKE_DRIVER"] = "1"
         self.start_daemon()
         profiles = self.get_dbus_property("Profiles")
@@ -1455,66 +1965,6 @@ class Tests(dbusmock.DBusTestCase):
         self.set_dbus_property("ActiveProfile", GLib.Variant.new_string("balanced"))
         self.assertEqual(
             self.read_sysfs_file("sys/firmware/acpi/platform_profile"), b"balanced"
-        )
-
-    def test_tm2017_balanced_power_source(self):
-        """Balanced follows AC/battery using balanced-performance on AC."""
-        acpi_dir = os.path.join(self.testbed.get_root_dir(), "sys/firmware/acpi/")
-        os.makedirs(acpi_dir)
-
-        self.write_file_contents(
-            os.path.join(acpi_dir, "platform_profile"),
-            "balanced\n",
-        )
-        self.write_file_contents(
-            os.path.join(acpi_dir, "platform_profile_choices"),
-            "low-power balanced balanced-performance performance\n",
-        )
-
-        _, upowerd_obj, _ = self.start_dbus_template(
-            "upower",
-            {"DaemonVersion": "0.99", "OnBattery": False},
-        )
-
-        self.start_daemon()
-
-        # Only the three logical PPD profiles must be exposed.
-        profiles = self.get_dbus_property("Profiles")
-        self.assertEqual(len(profiles), 3)
-
-        # Select logical balanced.
-        self.set_dbus_property(
-            "ActiveProfile",
-            GLib.Variant.new_string("balanced"),
-        )
-
-        self.assertEqual(
-            self.read_sysfs_file(
-                "sys/firmware/acpi/platform_profile"
-            ),
-            b"balanced-performance",
-        )
-
-        # AC -> battery: balanced should become hardware balanced.
-        upowerd_obj.Set(
-            "org.freedesktop.UPower",
-            "OnBattery",
-            True,
-        )
-        self.assert_file_eventually_contains(
-            os.path.join(acpi_dir, "platform_profile"),
-            "balanced",
-        )
-
-        # Battery -> AC: balanced should become hardware balanced-performance.
-        upowerd_obj.Set(
-            "org.freedesktop.UPower",
-            "OnBattery",
-            False,
-        )
-        self.assert_file_eventually_contains(
-            os.path.join(acpi_dir, "platform_profile"),
-            "balanced-performance",
         )
 
     def test_quiet(self):
