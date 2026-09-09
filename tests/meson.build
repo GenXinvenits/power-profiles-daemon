@@ -3,9 +3,13 @@ envs.set('PPD_TEST_VERBOSE', 'true')
 envs.set ('top_builddir', meson.project_build_root())
 
 unittest_inspector = find_program('unittest_inspector.py')
-integration_tests = files('integration_test.py')
-r = run_command(python3, unittest_inspector, integration_tests, check: true)
-unit_tests = r.stdout().strip().split('\n')
+integration_tests = files('integration_test.py', 'tm2017_test.py')
+unit_tests = []
+
+foreach integration_test : integration_tests
+    r = run_command(python3, unittest_inspector, integration_test, check: true)
+    unit_tests += r.stdout().strip().split('\n').map((ut) => [integration_test, ut])
+endforeach
 
 valgrind = find_program('valgrind', required: false)
 if valgrind.found()
@@ -75,11 +79,11 @@ if python3_coverage.found()
 endif
 
 foreach ut: unit_tests
-    test(ut,
+    test(ut[1],
          python3,
          args: [
-            integration_tests,
-            ut,
+            ut[0],
+            ut[1],
          ],
          env: envs,
         )
