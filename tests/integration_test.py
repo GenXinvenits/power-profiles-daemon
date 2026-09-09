@@ -1097,7 +1097,7 @@ class Tests(dbusmock.DBusTestCase):
 
         # Verify that both drivers are loaded
         profiles = self.get_dbus_property("Profiles")
-        self.assertEqual(len(profiles), 3)
+        self.assertEqual(len(profiles), 4)
         self.assertEqual(profiles[0]["Driver"], "multiple")
         self.assertEqual(profiles[0]["CpuDriver"], "amd_pstate")
         self.assertEqual(profiles[0]["PlatformDriver"], "platform_profile")
@@ -1139,13 +1139,13 @@ class Tests(dbusmock.DBusTestCase):
             self.read_sysfs_file(
                 "sys/devices/system/cpu/cpufreq/policy0/energy_performance_preference"
             ),
-            b"balance_power",
+            b"balance_performance",
         )
         self.assertEqual(
             self.read_sysfs_file(
                 "sys/devices/system/cpu/cpufreq/policy1/energy_performance_preference"
             ),
-            b"balance_power",
+            b"balance_performance",
         )
 
     # pylint: disable=too-many-statements
@@ -1921,7 +1921,7 @@ class Tests(dbusmock.DBusTestCase):
         acpi_dir = os.path.join(self.testbed.get_root_dir(), "sys/firmware/acpi/")
         self.write_file_contents(
             os.path.join(acpi_dir, "platform_profile_choices"),
-            "low-power\nbalanced\nbalanced-performance\nperformance\n",
+            "low-power\nbalanced\nbalanced_performance\nperformance\n",
         )
         self.write_file_contents(
             os.path.join(acpi_dir, "platform_profile"), "performance\n"
@@ -1974,7 +1974,7 @@ class Tests(dbusmock.DBusTestCase):
         self.write_file_contents(os.path.join(acpi_dir, "platform_profile"), "quiet\n")
         self.write_file_contents(
             os.path.join(acpi_dir, "platform_profile_choices"),
-            "quiet balanced balanced-performance performance\n",
+            "quiet balanced balanced_performance performance\n",
         )
 
         self.start_daemon()

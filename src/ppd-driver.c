@@ -192,7 +192,7 @@ ppd_driver_class_init (PpdDriverClass *klass)
                                                       "Profiles implemented by this driver",
                                                       PPD_TYPE_PROFILE,
                                                       0,
-                                                      G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
+                                                      G_PARAM_READWRITE));
   /**
    * PpdPlatformDriver:performance-degraded:
    *
