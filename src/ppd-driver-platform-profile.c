@@ -2,7 +2,7 @@
  * Copyright (c) 2020 Bastien Nocera <hadess@hadess.net>
  *
  * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by
+ * under the terms of the GNU General Public License version 3 as published by
  * the Free Software Foundation.
  *
  */
@@ -73,6 +73,10 @@ profile_to_acpi_platform_profile_value (PpdDriverPlatformProfile *self,
          g_strv_contains ((const char * const*) self->profile_choices, "balanced_performance")))
       return g_strv_contains ((const char * const*) self->profile_choices, "balanced-performance") ?
              "balanced-performance" : "balanced_performance";
+    if (g_strv_contains ((const char * const*) self->profile_choices, "balanced"))
+      return "balanced";
+    if (g_strv_contains ((const char * const*) self->profile_choices, "cool"))
+      return "cool";
     return "balanced";
   case PPD_PROFILE_PERFORMANCE:
     return "performance";
@@ -264,11 +268,27 @@ ppd_driver_platform_profile_activate_profile (PpdDriver                   *drive
   }
 
   g_strchomp (current_profile_value);
+
   if (g_str_equal (current_profile_value, platform_profile_value)) {
     g_debug ("Platform profile already set to %s for logical profile %s",
              platform_profile_value,
              ppd_profile_to_str (profile));
     self->acpi_platform_profile = profile;
+    self->selected_profile = profile;
+    return TRUE;
+  }
+
+  /* Preserve PPD's hardware-profile emulation for devices such as HP-WMI.
+   * On those systems, "cool" represents the logical "balanced" profile.
+   * A device exposing balanced-performance is handled specially because
+   * balanced must follow the current AC/battery state. */
+  if (self->acpi_platform_profile == acpi_platform_profile_value_to_profile (platform_profile_value) &&
+      !(profile == PPD_PROFILE_BALANCED &&
+        (g_strv_contains ((const char * const*) self->profile_choices, "balanced-performance") ||
+         g_strv_contains ((const char * const*) self->profile_choices, "balanced_performance")))) {
+    g_debug ("Not switching to platform_profile %s, emulating for %s, already there",
+             platform_profile_value,
+             ppd_profile_to_str (profile));
     self->selected_profile = profile;
     return TRUE;
   }
