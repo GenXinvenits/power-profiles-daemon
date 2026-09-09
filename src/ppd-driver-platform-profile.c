@@ -27,6 +27,8 @@ struct _PpdDriverPlatformProfile
   GUdevDevice *device;
   int lapmode;
   PpdProfile acpi_platform_profile;
+  PpdProfile selected_profile;
+  PpdPowerChangedReason power_changed_reason;
   char **profile_choices;
   gboolean has_low_power;
   GFileMonitor *lapmode_mon;
@@ -66,6 +68,11 @@ profile_to_acpi_platform_profile_value (PpdDriverPlatformProfile *self,
       return "low-power";
     return "quiet";
   case PPD_PROFILE_BALANCED:
+    if (self->power_changed_reason == PPD_POWER_CHANGED_REASON_AC &&
+        (g_strv_contains ((const char * const*) self->profile_choices, "balanced-performance") ||
+         g_strv_contains ((const char * const*) self->profile_choices, "balanced_performance")))
+      return g_strv_contains ((const char * const*) self->profile_choices, "balanced-performance") ?
+             "balanced-performance" : "balanced_performance";
     return "balanced";
   case PPD_PROFILE_PERFORMANCE:
     return "performance";
@@ -89,6 +96,7 @@ acpi_platform_profile_value_to_profile (const char *str)
     return PPD_PROFILE_POWER_SAVER;
 
   if (g_str_equal (str, "balanced") ||
+      g_str_equal (str, "balanced-performance") ||
       g_str_equal (str, "balanced_performance") ||
       g_str_equal (str, "cool"))
     return PPD_PROFILE_BALANCED;
@@ -98,6 +106,12 @@ acpi_platform_profile_value_to_profile (const char *str)
 
   g_debug ("Unhandled ACPI platform profile '%s'", str);
   g_return_val_if_reached (PPD_PROFILE_UNSET);
+}
+
+static PpdPowerChangedReason
+get_power_changed_reason (PpdDriverPlatformProfile *self)
+{
+  return self->power_changed_reason;
 }
 
 static PpdProfile
@@ -239,28 +253,35 @@ ppd_driver_platform_profile_activate_profile (PpdDriver                   *drive
   PpdDriverPlatformProfile *self = PPD_DRIVER_PLATFORM_PROFILE (driver);
   g_autoptr(GError) local_error = NULL;
   g_autofree char *platform_profile_path = NULL;
+  g_autofree char *current_profile_value = NULL;
   const char *platform_profile_value;
 
   g_return_val_if_fail (self->acpi_platform_profile_mon, FALSE);
 
-  if (self->acpi_platform_profile == profile) {
-    g_debug ("Can't switch to %s mode, already there",
-             ppd_profile_to_str (profile));
-    return TRUE;
+  self->selected_profile = profile;
+  platform_profile_value = profile_to_acpi_platform_profile_value (self, profile);
+
+  platform_profile_path = ppd_utils_get_sysfs_path (ACPI_PLATFORM_PROFILE_PATH);
+  if (!g_file_get_contents (platform_profile_path,
+                            &current_profile_value, NULL, &local_error)) {
+    g_debug ("Failed to read current acpi_platform_profile: %s", local_error->message);
+    g_propagate_prefixed_error (error, g_steal_pointer (&local_error),
+                                "Failed to read acpi_platform_profile: ");
+    return FALSE;
   }
 
-  platform_profile_value = profile_to_acpi_platform_profile_value (self, profile);
-  if (self->acpi_platform_profile == acpi_platform_profile_value_to_profile (platform_profile_value)) {
-    g_debug ("Not switching to platform_profile %s, emulating for %s, already there",
+  g_strchomp (current_profile_value);
+  if (g_str_equal (current_profile_value, platform_profile_value)) {
+    g_debug ("Platform profile already set to %s for logical profile %s",
              platform_profile_value,
              ppd_profile_to_str (profile));
+    self->acpi_platform_profile = profile;
     return TRUE;
   }
 
   g_signal_handler_block (G_OBJECT (self->acpi_platform_profile_mon), self->acpi_platform_profile_changed_id);
-  platform_profile_path = ppd_utils_get_sysfs_path (ACPI_PLATFORM_PROFILE_PATH);
   if (!ppd_utils_write (platform_profile_path,
-                        profile_to_acpi_platform_profile_value (self, profile), &local_error)) {
+                        platform_profile_value, &local_error)) {
     g_debug ("Failed to write to acpi_platform_profile: %s", local_error->message);
     g_propagate_prefixed_error (error, g_steal_pointer (&local_error),
                                 "Failed to write to acpi_platform_profile: ");
@@ -269,9 +290,36 @@ ppd_driver_platform_profile_activate_profile (PpdDriver                   *drive
   }
   g_signal_handler_unblock (G_OBJECT (self->acpi_platform_profile_mon), self->acpi_platform_profile_changed_id);
 
-  g_debug ("Successfully switched to profile %s", ppd_profile_to_str (profile));
+  g_debug ("Successfully switched to hardware profile %s for logical profile %s",
+           platform_profile_value,
+           ppd_profile_to_str (profile));
   self->acpi_platform_profile = profile;
   return TRUE;
+}
+
+static gboolean
+ppd_driver_platform_profile_power_changed (PpdDriver                  *driver,
+                                           PpdPowerChangedReason       reason,
+                                           GError                    **error)
+{
+  PpdDriverPlatformProfile *self = PPD_DRIVER_PLATFORM_PROFILE (driver);
+
+  self->power_changed_reason = reason;
+
+  if (self->selected_profile != PPD_PROFILE_BALANCED)
+    return TRUE;
+
+  if (reason != PPD_POWER_CHANGED_REASON_AC &&
+      reason != PPD_POWER_CHANGED_REASON_BATTERY)
+    return TRUE;
+
+  g_debug ("Power source changed to %s while balanced is selected, updating platform profile",
+           ppd_power_changed_reason_to_str (reason));
+
+  return ppd_driver_platform_profile_activate_profile (driver,
+                                                        PPD_PROFILE_BALANCED,
+                                                        PPD_PROFILE_ACTIVATION_REASON_INTERNAL,
+                                                        error);
 }
 
 static int
@@ -373,10 +421,13 @@ ppd_driver_platform_profile_class_init (PpdDriverPlatformProfileClass *klass)
   driver_class = PPD_DRIVER_CLASS (klass);
   driver_class->probe = ppd_driver_platform_profile_probe;
   driver_class->activate_profile = ppd_driver_platform_profile_activate_profile;
+  driver_class->power_changed = ppd_driver_platform_profile_power_changed;
 }
 
 static void
 ppd_driver_platform_profile_init (PpdDriverPlatformProfile *self)
 {
   self->probe_result = PPD_PROBE_RESULT_UNSET;
+  self->selected_profile = PPD_PROFILE_UNSET;
+  self->power_changed_reason = PPD_POWER_CHANGED_REASON_UNKNOWN;
 }
