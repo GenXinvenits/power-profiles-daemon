@@ -48,7 +48,7 @@ ppd_driver_platform_profile_constructor (GType                  type,
                                                                                    construct_params);
   g_object_set (object,
                 "driver-name", "platform_profile",
-                "profiles", PPD_PROFILE_PERFORMANCE | PPD_PROFILE_BALANCED | PPD_PROFILE_POWER_SAVER,
+                "profiles", PPD_PROFILE_PERFORMANCE | PPD_PROFILE_BALANCED_PERFORMANCE | PPD_PROFILE_BALANCED | PPD_PROFILE_POWER_SAVER,
                 NULL);
 
   return object;
@@ -67,6 +67,8 @@ profile_to_acpi_platform_profile_value (PpdDriverPlatformProfile *self,
     return "quiet";
   case PPD_PROFILE_BALANCED:
     return "balanced";
+  case PPD_PROFILE_BALANCED_PERFORMANCE:
+    return "balanced_performance";
   case PPD_PROFILE_PERFORMANCE:
     return "performance";
   }
@@ -88,9 +90,13 @@ acpi_platform_profile_value_to_profile (const char *str)
       g_str_equal (str, "quiet"))
     return PPD_PROFILE_POWER_SAVER;
 
-  if (g_str_equal (str, "balanced") ||
-      g_str_equal (str, "balanced_performance") ||
-      g_str_equal (str, "cool"))
+  if (g_str_equal (str, "balanced"))
+    return PPD_PROFILE_BALANCED;
+
+  if (g_str_equal (str, "balanced_performance"))
+    return PPD_PROFILE_BALANCED_PERFORMANCE;
+
+  if (g_str_equal (str, "cool"))
     return PPD_PROFILE_BALANCED;
 
   if (g_str_equal (str, "performance"))
@@ -177,20 +183,6 @@ update_dytc_lapmode_state (PpdDriverPlatformProfile *self)
   g_object_set (G_OBJECT (self),
                 "performance-degraded", self->lapmode ? "lap-detected" : NULL,
                 NULL);
-}
-
-static void
-update_acpi_platform_profile_state (PpdDriverPlatformProfile *self)
-{
-  PpdProfile new_profile;
-
-  new_profile = read_platform_profile ();
-  if (new_profile == PPD_PROFILE_UNSET ||
-      new_profile == self->acpi_platform_profile)
-    return;
-
-  self->acpi_platform_profile = new_profile;
-  ppd_driver_emit_profile_changed (PPD_DRIVER (self), new_profile);
 }
 
 static void
